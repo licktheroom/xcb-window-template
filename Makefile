@@ -1,3 +1,5 @@
+# Copyright (c) 2023 licktheroom
+
 CC = clang
 CFLAGS = -O2 -march=native -pipe -fomit-frame-pointer -Wall -Wextra -Wshadow \
 		-Wdouble-promotion -fno-common -std=c11
