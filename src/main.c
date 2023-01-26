@@ -1,6 +1,7 @@
+// Copyright (c) 2023 licktheroom //
+
 // DEFINES //
 
-#define DEBUG
 #define WN_NAME "xcb-window"
 
 // HEADERS //
@@ -11,8 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <time.h>
-#include <unistd.h>
 
 // X11
 
@@ -63,9 +62,11 @@ window_get_close_event(void);
 int
 main()
 {
+    // Set basic window data
     game.window.width = game.window.height = 300;
     game.should_close = false;
 
+    // Init
     if(!init()) {
         fprintf(stderr, "Init failed!\n");
         clean_up();
@@ -75,6 +76,7 @@ main()
 
     fprintf(stdout, "init done\n");
     
+    // Wait until we should close
     while(game.should_close == false)
     {
         input();
@@ -93,6 +95,8 @@ clean_up(void)
     xcb_disconnect(game.xcb.connection);
 }
 
+// As far as I could find, there are very few recources on XCB error codes
+// All I can say is look through xproto.h or pray google finds it
 void
 error_print(xcb_generic_error_t *error)
 {
@@ -173,11 +177,13 @@ error_print(xcb_generic_error_t *error)
 bool
 init(void)
 {
+    // Create window
     if(!window_create()) {
         fprintf(stderr, "Window creation failed!\n");
         return false;
     }
 
+    // Get close event
     if(!window_get_close_event()) {
         fprintf(stderr, "Failed to get XCB window close event!\n");
         return false;
@@ -186,6 +192,7 @@ init(void)
     return true;
 }
 
+// See https://xcb.freedesktop.org/tutorial/events/
 void
 input(void)
 {
@@ -198,11 +205,13 @@ input(void)
 
         switch(event->response_type & ~0x80)
         {
+            // if it's a message about our window 
             case XCB_CLIENT_MESSAGE:
             {
                 unsigned int ev = 
                         (*(xcb_client_message_event_t *)event).data.data32[0];
 
+                // if it's the close event
                 if(ev == game.xcb.close_event)
                     game.should_close = true;
             }
@@ -210,13 +219,17 @@ input(void)
             break;
         }
 
-        free(event);
+        free(event); // Always free your event!
     }
 }
 
+// See https://xcb.freedesktop.org/tutorial/basicwindowsanddrawing/
+// and https://xcb.freedesktop.org/tutorial/events/
+// and https://xcb.freedesktop.org/windowcontextandmanipulation/
 bool
 window_create(void)
 {
+    // Create the connection
     game.xcb.connection = xcb_connect(NULL, NULL);
 
     if(!game.xcb.connection) {
@@ -225,13 +238,16 @@ window_create(void)
         return false;
     }
 
+    // Error data, used later
     xcb_void_cookie_t cookie;
     xcb_generic_error_t *error;
 
+    // Get screen
     const xcb_setup_t *setup = xcb_get_setup(game.xcb.connection);
     xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
     xcb_screen_t *screen = iter.data;
 
+    // Create window
     const int eventmask = XCB_EVENT_MASK_EXPOSURE | 
                           XCB_EVENT_MASK_KEY_PRESS | 
                           XCB_EVENT_MASK_KEY_RELEASE | 
@@ -255,7 +271,7 @@ window_create(void)
                                        XCB_WINDOW_CLASS_INPUT_OUTPUT,
                                        screen->root_visual,
                                        valmask, valwin);
-
+    // Check if there was an error
     error = xcb_request_check(game.xcb.connection, cookie);
 
     if(error != NULL)
@@ -267,9 +283,11 @@ window_create(void)
         free(error);
         return false;
     }
-
+    
+    // Map the window
     cookie = xcb_map_window_checked(game.xcb.connection, game.xcb.window);
 
+    // Check for error
     error = xcb_request_check(game.xcb.connection, cookie);
 
     if(error != NULL)
@@ -282,6 +300,7 @@ window_create(void)
         return false;
     }
 
+    // Set the window's name
     cookie = xcb_change_property_checked(game.xcb.connection,
                                          XCB_PROP_MODE_REPLACE,
                                          game.xcb.window,
@@ -291,6 +310,7 @@ window_create(void)
                                          strlen(WN_NAME),
                                          WN_NAME);
 
+    // Check for error
     error = xcb_request_check(game.xcb.connection, cookie);
 
     if(error != NULL)
@@ -306,11 +326,14 @@ window_create(void)
     return true;
 }
 
+// See https://marc.info/?l=freedesktop-xcb&m=129381953404497
+// Sadly that is the best result I could find
 bool
 window_get_close_event(void)
 {
     xcb_generic_error_t *error;
 
+    // We need to get WM_PROTOCOLS before we can get the close event
     xcb_intern_atom_cookie_t c_proto = xcb_intern_atom(game.xcb.connection,
                                                        1, 12,
                                                        "WM_PROTOCOLS");
@@ -319,6 +342,7 @@ window_get_close_event(void)
                                                           c_proto,
                                                           &error);
 
+    // Check for error
     if(error != NULL)
     {
         fprintf(stderr, "Failed to get WM_PROTOCOLS!\n");
@@ -329,6 +353,7 @@ window_get_close_event(void)
         return false;
     }
 
+    // Get the close event
     xcb_intern_atom_cookie_t c_close = xcb_intern_atom(game.xcb.connection,
                                                        0, 16,
                                                        "WM_DELETE_WINDOW");
@@ -337,6 +362,7 @@ window_get_close_event(void)
                                                           c_close,
                                                           &error);
 
+    // Check for error
     if(error != NULL)
     {
         fprintf(stderr, "Failed to get WM_DELETE_WINDOW!\n");
@@ -347,6 +373,7 @@ window_get_close_event(void)
         return false;
     }
 
+    // Enable the close event so we can actually receive it
     xcb_void_cookie_t cookie = xcb_change_property_checked(game.xcb.connection,
                                                            XCB_PROP_MODE_REPLACE,
                                                            game.xcb.window,
@@ -356,6 +383,7 @@ window_get_close_event(void)
                                                            1,
                                                            &r_close->atom);
 
+    // Check for error
     error = xcb_request_check(game.xcb.connection, cookie);
 
     if(error != NULL)
