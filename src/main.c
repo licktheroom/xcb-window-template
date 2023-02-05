@@ -67,14 +67,12 @@ main()
     game.should_close = false;
 
     // Init
+    fprintf(stdout, "Loading.\n");
     if(!init()) {
-        fprintf(stderr, "Init failed!\n");
         clean_up();
 
         return -1;
     }
-
-    fprintf(stdout, "init done\n");
     
     // Wait until we should close
     while(game.should_close == false)
@@ -91,6 +89,8 @@ main()
 void
 clean_up(void)
 {
+    fprintf(stdout, "Exiting.\n");
+
     xcb_destroy_window(game.xcb.connection, game.xcb.window);
     xcb_disconnect(game.xcb.connection);
 }
@@ -177,18 +177,13 @@ error_print(xcb_generic_error_t *error)
 bool
 init(void)
 {
-    // Create window
-    if(!window_create()) {
-        fprintf(stderr, "Window creation failed!\n");
+    if(!window_create() ||
+       !window_get_close_event()) {
+        fprintf(stderr, "\nInitialization failed!\n");
         return false;
     }
 
-    // Get close event
-    if(!window_get_close_event()) {
-        fprintf(stderr, "Failed to get XCB window close event!\n");
-        return false;
-    }
-
+    fprintf(stdout, "Initialization finished.\n");
     return true;
 }
 
@@ -254,7 +249,8 @@ window_create(void)
                           XCB_EVENT_MASK_BUTTON_PRESS | 
                           XCB_EVENT_MASK_BUTTON_RELEASE | 
                           XCB_EVENT_MASK_POINTER_MOTION | 
-                          XCB_EVENT_MASK_BUTTON_MOTION;
+                          XCB_EVENT_MASK_BUTTON_MOTION |
+                          XCB_EVENT_MASK_STRUCTURE_NOTIFY;;
 
     const int valwin[] = {eventmask, 0};
     const int valmask = XCB_CW_EVENT_MASK;
