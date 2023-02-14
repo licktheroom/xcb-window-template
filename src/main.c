@@ -250,7 +250,7 @@ window_create(void)
                           XCB_EVENT_MASK_BUTTON_RELEASE | 
                           XCB_EVENT_MASK_POINTER_MOTION | 
                           XCB_EVENT_MASK_BUTTON_MOTION |
-                          XCB_EVENT_MASK_STRUCTURE_NOTIFY;;
+                          XCB_EVENT_MASK_STRUCTURE_NOTIFY;
 
     const int valwin[] = {eventmask, 0};
     const int valmask = XCB_CW_EVENT_MASK;
@@ -384,7 +384,7 @@ window_get_close_event(void)
 
     if(error != NULL)
     {
-        fprintf(stderr, "Failed to set window close event!\n");
+        fprintf(stderr, "Failed to get window close event!\n");
 
         error_print(error);
 
